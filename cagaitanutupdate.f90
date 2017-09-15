@@ -82,7 +82,7 @@ end do
 call salva_eps(cont , Lx, Ly, Nballs, R, S(:,1), S(:,2), ang)
 
 !Loop para correr o tempo
-do n=1,10*100000
+do n=1,20*100000
 	Cell = -1
 	marcabola = -1
 	
@@ -301,10 +301,10 @@ function funcparede(x,amp)
 
  if((x.gt.1.5d0).and.(x.le.3.5d0)) then !Aumenta amplitude
 	funcparede = (amp/1000.d0)*(exp(3.454d0*(x-1.5d0)))*sin(w*(x-1.5d0))
- else if((x.gt.3.5d0).and.(x.le.8.5d0)) then !Mantem amplitude
+ else if((x.gt.3.5d0).and.(x.le.18.d0)) then !Mantem amplitude
 	funcparede = amp*sin(w*(x-1.5d0))
- else if((x.gt.8.5d0).and.(x.le.9.5d0)) then !Diminui amplitude ate parar
-	funcparede = amp*(exp(-10.82*(x-8.5d0)))*sin(w*(x-1.5d0))
+ else if((x.gt.18.d0).and.(x.le.19.d0)) then !Diminui amplitude ate parar
+	funcparede = amp*(exp(-10.82*(x-18.d0)))*sin(w*(x-1.5d0))
  else !Antes de estabilizar
 	funcparede = 0.d0
  end if

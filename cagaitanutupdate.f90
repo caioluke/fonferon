@@ -40,14 +40,14 @@ allocate(Torque(Nballs),Fatrito(Nballs,2),ang(Nballs))
  gamaN = 9.d0           !Coeficiente da força dissipativa (Normal)
  gamaS = 9.d0           !Coeficiente da força dissipativa (Shear)
  Lx = 10.8d0!25.d0  para 1001            !Tamanho da parede do confinamento em x
- Ly = 20.d0!30.d0  para 1001          !Tamanho da parede do confinamento em y
+ Ly = 20.d0!32.d0  para 1001          !Tamanho da parede do confinamento em y
  Ldown = 0.45d0         !Altura da parede de baixo
  g = -10.d0             !Gravidade
  minormal = 0.5d0       !Coeficiente de atrito entre as bolinhas
  miparede = 0.5d0       !Coeficiente de atrito da parede
 
 !Amplitude da vibração da caixa
- amplitude = 0.25d0
+ amplitude = 0.4d0
 
 !Subrotina da posiçao inicial
 call pos_init(S,R,rmedio,Lx,Ly,Ldown,Lcell,nxis,nyip,Nballs,amplitude)
@@ -105,7 +105,7 @@ do n=1,20*100000
 	Fatrito = 0.d0
 	Torque = 0.d0
 	FR(:,1) = 0.d0
-	FR(:,2) = m(:)*g! FR(:,2) = m(:)*g ou FR(:,2) = 0.d0
+	FR(:,2) = m(:)*g
 
 	!Para chacoalhar a caixa
 	Ldown = 0.45d0 + funcparede(n*h,amplitude)
@@ -297,13 +297,13 @@ function funcparede(x,amp)
  !Ou faz com exponencial rs
  
  !w = 2*pi*f
- w = 12.566d0
+ w = 18.84955d0
 
  if((x.gt.1.5d0).and.(x.le.3.5d0)) then !Aumenta amplitude
 	funcparede = (amp/1000.d0)*(exp(3.454d0*(x-1.5d0)))*sin(w*(x-1.5d0))
  else if((x.gt.3.5d0).and.(x.le.18.d0)) then !Mantem amplitude
 	funcparede = amp*sin(w*(x-1.5d0))
- else if((x.gt.18.d0).and.(x.le.19.d0)) then !Diminui amplitude ate parar
+ else if((x.gt.18.d0).and.(x.le.19.5d0)) then !Diminui amplitude ate parar
 	funcparede = amp*(exp(-10.82*(x-18.d0)))*sin(w*(x-1.5d0))
  else !Antes de estabilizar
 	funcparede = 0.d0
@@ -372,6 +372,7 @@ double precision, dimension (Nballs,2), intent (inout) :: Fatrito,Fparede,FR
 double precision, dimension (2) :: csi
 double precision :: vrelnormal,vreltangente,rel,nor,sinalvtan
 
+!Nas paredes de cima e da esquerda tem que trocar o sinal do omega*R para a velocidade relativa e do Torque também
 !Parede 1 é a da esquerda, 2 de baixo, 3 da direita e 4 de cima
  select case(parede)
  case(1) !Parede da esquerda 
@@ -379,7 +380,7 @@ double precision :: vrelnormal,vreltangente,rel,nor,sinalvtan
 	Fparede(j,1) = K*csi(1) - gamaN*v(j,1)
 	
 	vrelnormal = v(j,1)
-	vreltangente = v(j,2) + omega(j)*R(j)	
+	vreltangente = v(j,2) - omega(j)*R(j)	
 	sinalvtan = sinal(vreltangente)
 	
 	rel = gamaS*abs(vreltangente)
@@ -387,11 +388,11 @@ double precision :: vrelnormal,vreltangente,rel,nor,sinalvtan
 	if(nor.gt.rel) then
 		Fatrito(j,2) = - rel*sinalvtan
 		FR(j,2) = FR(j,2) + Fatrito(j,2)
-		Torque(j) = Torque(j) - R(j)*abs(Fatrito(j,2))*sinalvtan
+		Torque(j) = Torque(j) + R(j)*abs(Fatrito(j,2))*sinalvtan
 	else
 		Fatrito(j,2) = - nor*sinalvtan
 		FR(j,2) = FR(j,2) + Fatrito(j,2)
-		Torque(j) = Torque(j) - R(j)*abs(Fatrito(j,2))*sinalvtan
+		Torque(j) = Torque(j) + R(j)*abs(Fatrito(j,2))*sinalvtan
 	end if	
 	
  case(2) !Parede de baixo
@@ -439,7 +440,7 @@ double precision :: vrelnormal,vreltangente,rel,nor,sinalvtan
 	Fparede(j,2) = K*csi(2) - gamaN*v(j,2)
 	
 	vrelnormal = v(j,2)
-	vreltangente = v(j,1) + omega(j)*R(j)
+	vreltangente = v(j,1) - omega(j)*R(j)
 	sinalvtan = sinal(vreltangente)
 
 	rel = gamaS*abs(vreltangente)
@@ -447,11 +448,11 @@ double precision :: vrelnormal,vreltangente,rel,nor,sinalvtan
 	if(nor.gt.rel) then
 		Fatrito(j,1) = - rel*sinalvtan
 		FR(j,1) = FR(j,1) + Fatrito(j,1)
-		Torque(j) = Torque(j) - R(j)*abs(Fatrito(j,1))*sinalvtan
+		Torque(j) = Torque(j) + R(j)*abs(Fatrito(j,1))*sinalvtan
 	else
 		Fatrito(j,1) = - nor*sinalvtan
 		FR(j,1) = FR(j,1) + Fatrito(j,1)
-		Torque(j) = Torque(j) - R(j)*abs(Fatrito(j,1))*sinalvtan
+		Torque(j) = Torque(j) + R(j)*abs(Fatrito(j,1))*sinalvtan
 	end if	
 	
  end select

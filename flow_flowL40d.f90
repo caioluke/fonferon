@@ -26,10 +26,7 @@ open(unit=31,file='vtflowL40d.dat',status='unknown')
  read(30,*) h,K,densidade,g,gamaN1,gamaN2,gamaS,minormal,miparede,Hmax
  read(30,*) scale,xinfesq,yinfesq,xsupdir,ysupdir
  read(30,*) tentativa,flow_angle1
- do j=1,Nballs
-	read(30,*) S(j,1),S(j,2),v(j,1),v(j,2),m(j)
-	read(30,*) R(j),teta(j),omega(j),Inercia(j)
- end do
+
  !read(69,*) ninit
  
 !close(69)
@@ -63,6 +60,11 @@ allocate(Cellrough(0:nxis-1,0:nyiprough,Nroughs),marcarough(0:nxis-1,0:nyiprough
 !- Ou seja, esse programa só escoa
 !- Arquivo 30, ler a condição inicial normal
 !- Arquivo 69, ler do backup
+
+ do j=1,Nballs
+	read(30,*) S(j,1),S(j,2),v(j,1),v(j,2),m(j)
+	read(30,*) R(j),teta(j),omega(j),Inercia(j)
+ end do
 !*********************************************************************************
  
 !Colocar as rugosidades em suas células

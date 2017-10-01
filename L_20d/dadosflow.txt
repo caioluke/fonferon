@@ -3,4 +3,4 @@
  Altura que o cara usa no artigo (N*d/L) :   23.999999999999996     
  Ângulo de escoamento (graus) :   21.000000000001400     
  Tempo de simulação (segundos) :   20.000010000000003     
- O tempo para rodar foi de    0.0000000      dias    4.0000000      horas    296.00000      minutos
+ O tempo para rodar foi de    0.0000000      dias    3.0000000      horas    238.00000      minutos

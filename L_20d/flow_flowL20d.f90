@@ -61,7 +61,7 @@ open(unit=31,file='vtflowL20d.dat',status='unknown')
 !Colocar as rugosidades em suas células
  Cellrough = -1
  marcarough = -1
- 
+
  do a=1,Nroughs
 	Srough(a) = rrough + (a-1)*1.d0*(2.d0*rrough + deltarough) 
 	
@@ -99,6 +99,8 @@ open(unit=31,file='vtflowL20d.dat',status='unknown')
 do n=1,20*100000
 	Cell = -1
 	marcabola = -1
+	
+	vmedia = 0.d0
 	
 	do a=1,Nballs
 		!A última célula (nxis) e a primeira (-1) servem apenas para calcular as forças NÃO HÁ BOLINHAS LÁ

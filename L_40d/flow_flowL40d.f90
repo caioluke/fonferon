@@ -26,7 +26,6 @@ open(unit=31,file='vtflowL40d.dat',status='unknown')
  read(30,*) h,K,densidade,g,gamaN1,gamaN2,gamaS,minormal,miparede,Hmax
  read(30,*) scale,xinfesq,yinfesq,xsupdir,ysupdir
  read(30,*) tentativa,flow_angle1
-
  !read(69,*) ninit
  
 !close(69)
@@ -445,11 +444,11 @@ do n=ninit,20*100000
 		write(69,*) h,K,densidade,g,gamaN1,gamaN2,gamaS,minormal,miparede,Hmax
 		write(69,*) scale,xinfesq,yinfesq,xsupdir,ysupdir
 		write(69,*) tentativa,flow_angle1 
+		write(69,*) n+1
 		do j=1,Nballs
 			write(69,*) S(j,1),S(j,2),v(j,1),v(j,2),m(j)
 			write(69,*) R(j),teta(j),omega(j),Inercia(j)
-		end do		
-		write(69,*) n+1
+		end do			
 		
 		close(69)
 	end if

@@ -1,25 +1,27 @@
 program flow_flow
 implicit none
 double precision, dimension (:,:), allocatable :: Sold,Snow,S,v
-double precision, dimension (2) :: D,vmedia
+double precision, dimension (2) :: D
 double precision, dimension (:,:,:), allocatable :: Fnormal
-double precision, dimension (:,:), allocatable :: FR,Fparede,Fatrito,Froughness
+double precision, dimension (:,:), allocatable :: FR,Fparede,Fatrito,Froughness,vperfil
 double precision, dimension (:), allocatable :: R,Inercia,tetaold,tetanow,teta,omega,Torque,ang,m,Srough
 integer, dimension (:,:,:), allocatable :: Cell,Cellrough
-integer, dimension (:,:), allocatable :: marcabola,marcarough
+integer, dimension (:,:), allocatable :: marcabola,marcarough,howmanyballs
 double precision :: h,K,gamaN1,gamaN2,gamaS,Lx,Ly,g,minormal,miparede,Lcell,rmax,densidade
-double precision :: flow_angle,flow_angle1,rrough,deltarough,saveme,Hmax,vbarra,vintegral
+double precision :: flow_angle,flow_angle1,rrough,deltarough,saveme,Hmax,vbarra,vwrite
 double precision :: scale,xinfesq,yinfesq,xsupdir,ysupdir
 integer :: i,j,n,Nballs,cont,a,b,c,veri,verfim,hori,horfim,penbola,ultbola
 integer :: xis,ypsilon,nxis,nyip,hor,ver,verclone,verclonei,verclonefim
-integer :: Nroughs,rugoshor,rugosver,rugosi,rugosfim,nyiprough,tentativa,ninit
+integer :: Nroughs,rugoshor,rugosver,rugosi,rugosfim,nyiprough,tentativa,ninit,vx,vy,vaux
 real :: start,finish,days,hours,mins
 call cpu_time(start)
 
  ninit = 1 !O tempo começa em 1, mas caso tenha que ler do backup ele atualiza o valor ali embaixo
 
 open(unit=30,file='initflowL60d.dat',status='old')
-open(unit=31,file='vtflowL60d.dat',status='unknown')
+open(unit=31,file='vestabflowL60d.dat',status='unknown')
+open(unit=32,file='vper1flowL60d.dat',status='unknown')
+open(unit=33,file='vper2flowL60d.dat',status='unknown')
 !open(unit=69,file='backup.dat',status='old')
 
  read(30,*) Nballs,Nroughs,rmax,Lx,Ly,Lcell,nxis,nyip,rrough,deltarough,nyiprough
@@ -36,6 +38,8 @@ allocate(Fnormal(Nballs,Nballs,2),Fparede(Nballs,2),FR(Nballs,2),Froughness(Nbal
 allocate(Torque(Nballs),Fatrito(Nballs,2),ang(Nballs))
 allocate(Cell(-1:nxis,0:nyip,Nballs),marcabola(-1:nxis,0:nyip))
 allocate(Cellrough(0:nxis-1,0:nyiprough,Nroughs),marcarough(0:nxis-1,0:nyiprough),Srough(Nroughs))
+allocate(howmanyballs(0:nxis-1,0:nyip))
+allocate(vperfil(0:nxis-1,0:nyip))
 
 ! As matrizez posição, velocidade e força resultante são estruturadas de forma que a linha i seja a bolinha i 
 !e as colunas 1,2 as direções x,y respectivamente
@@ -104,11 +108,13 @@ allocate(Cellrough(0:nxis-1,0:nyiprough,Nroughs),marcarough(0:nxis-1,0:nyiprough
  call salva_eps(cont,Lx,Ly,Nballs,R,S(:,1),S(:,2),ang,Nroughs,rrough,Srough,scale,xinfesq,yinfesq,xsupdir,ysupdir)
  
 !Loop para correr o tempo
-do n=ninit,20*100000
+do n=ninit,200*10000
 	Cell = -1
 	marcabola = -1
+	howmanyballs = 0
 	
-	vmedia = 0.d0
+	vbarra = 0.d0
+	vperfil = 0.d0
 	
 	do a=1,Nballs
 		!A última célula (nxis) e a primeira (-1) servem apenas para calcular as forças NÃO HÁ BOLINHAS LÁ
@@ -136,21 +142,60 @@ do n=ninit,20*100000
 		select case(marcabola(xis,ypsilon))
 		case(-1)
 			marcabola(xis,ypsilon) = a
+			howmanyballs(xis,ypsilon) = howmanyballs(xis,ypsilon) + 1
 		case default
 			Cell(xis,ypsilon,a) = marcabola(xis,ypsilon)
 			marcabola(xis,ypsilon) = a
+			howmanyballs(xis,ypsilon) = howmanyballs(xis,ypsilon) + 1
 		end select
 		
-		vmedia = vmedia + v(a,:)
+		vperfil(xis,ypsilon) = vperfil(xis,ypsilon) + (norm2(v(a,:)))**2
+		vbarra = vbarra + (norm2(v(a,:)))**2
 		
 	end do
 	
-	vbarra = norm2(vmedia)
 	if(mod(n,1000).eq.0) then
+	
+		vbarra = sqrt(vbarra)/Nballs
 		write(31,*) h*(n-1),vbarra
+		
+		!Perfil de velocidade a cada 5d (5 células) em X
+		do vy = 0,nyip
+			do vx = 0,((nxis/5)-1)
+				if(vaux.ne.0) then
+					vaux = howmanyballs(0+5*vx,vy)+howmanyballs(1+5*vx,vy)+howmanyballs(2+5*vx,vy)+howmanyballs(3+5*vx,vy)+howmanyballs(4+5*vx,vy)
+					vwrite = vperfil(0+5*vx,vy)+vperfil(1+5*vx,vy)+vperfil(2+5*vx,vy)+vperfil(3+5*vx,vy)+vperfil(4+5*vx,vy)
+					
+					vwrite = sqrt(vwrite)/(1.d0*vaux)
+				else
+					vwrite = 0.d0
+				end if
+				
+				write(32,*) h*(n-1),vwrite,5*(vx+1),nyip
+				
+			end do			
+		end do
+		
+		!Perfil de velocidade de cada 1d (1 célula) em X
+		do vy = 0,nyip
+			do vx = 0,nxis-1
+				if(vaux.ne.0) then
+					vaux = howmanyballs(vx,vy)
+					vwrite = vperfil(vx,vy)
+					
+					vwrite = sqrt(vwrite)/(1.d0*vaux)
+				else
+					vwrite = 0.d0
+				end if
+				
+				write(33,*) h*(n-1),vwrite,vx,nyip	
+				
+			end do			
+		end do
+		
 	end if
 	
-	if(n.le.1000) then
+	if(n.le.100) then
 		flow_angle = (25.d0)*0.01745329252d0
 	else 
 		flow_angle = flow_angle1
@@ -431,13 +476,13 @@ do n=ninit,20*100000
 	
 	ang = mod(teta,6.28318530718)
 	
-	if(mod(n,7500).eq.0) then
+	if(mod(n,10000).eq.0) then
 		cont = cont + 1
 		call salva_eps(cont,Lx,Ly,Nballs,R,S(:,1),S(:,2),ang,Nroughs,rrough,Srough,scale,xinfesq,yinfesq,xsupdir,ysupdir)
 		!write(*,*) cont,n*h
 	end if
 	
-	if(mod(n,100000).eq.0) then
+	if(mod(n,10*10000).eq.0) then
 		open(unit=69,file='backup.dat',status='unknown')
 		
 		write(69,*) Nballs,Nroughs,rmax,Lx,Ly,Lcell,nxis,nyip,rrough,deltarough,nyiprough
@@ -458,8 +503,8 @@ do n=ninit,20*100000
 
 call cpu_time(finish)
  days = int((finish-start)/86400)
- hours = int((finish-start)/3600)
- mins = int((finish-start)/60)
+ hours = int((finish-start)/3600) - int((finish-start)/86400)
+ mins = int((finish-start)/60)    - int((finish-start)/86400) - int((finish-start)/3600)
 
 deallocate(Sold,Snow,S,v,m,R)
 deallocate(tetaold,tetanow,teta,omega,Inercia)
@@ -467,6 +512,7 @@ deallocate(Fnormal,Fparede,FR)
 deallocate(Torque,Fatrito,ang)
 deallocate(Cell,marcabola)
 deallocate(Cellrough,marcarough,Srough,Froughness)
+deallocate(vperfil)
 
 open(unit=25,file='dadosflow.txt',status='unknown')
 write(25,*) "Número de bolas :", Nballs
@@ -479,6 +525,8 @@ close(25)
 
 close(30)
 close(31)
+close(32)
+close(33)
 
 contains
 

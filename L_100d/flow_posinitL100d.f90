@@ -46,7 +46,7 @@ call cpu_time(start)
  Lcell = 2.d0*rmax                            !Tamanho da célula (m)
  rrough = 2.d0*rmax                           !Raio da rugosidade (m)
  deltarough = 0.d0 / 100.d0                   !Espaço entre as rugosidades (m)
- Lx = 60.d0*(2.d0*rmax)                       !Tamanho da parede em x (m)
+ Lx = 100.d0*(2.d0*rmax)                       !Tamanho da parede em x (m)
  Ly = (24.d0 + 2.d0)*Lcell                    !Tamanho da parede em y (m)
 !*********************************************************************************
 !Scale e bounding box
@@ -486,7 +486,7 @@ do n=1,3*10000
  Hmax = Hmax + R(i)
  
  
-open(unit=51,file='initflowL60d.dat',status='unknown')
+open(unit=51,file='initflowL100d.dat',status='unknown')
  write(51,*) Nballs,Nroughs,rmax,Lx,Ly,Lcell,nxis,nyip,rrough,deltarough,nyiprough
  write(51,*) h,K,densidade,g,gamaN1,gamaN2,gamaS,minormal,miparede,Hmax
  write(51,*) scale,xinfesq,yinfesq,xsupdir,ysupdir

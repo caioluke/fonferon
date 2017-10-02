@@ -154,16 +154,17 @@ do n=ninit,200*10000
 		
 	end do
 	
-	if(mod(n,1000).eq.0) then
-	
+		if(mod(n,1000).eq.0) then	
 		vbarra = sqrt(vbarra)/Nballs
 		write(31,*) h*(n-1),vbarra
-		
+	end if
+
+	if(mod(n,10000).eq.0) then
 		!Perfil de velocidade a cada 5d (5 células) em X
 		do vy = 0,nyip
 			do vx = 0,((nxis/5)-1)
-				if(vaux.ne.0) then
-					vaux = howmanyballs(0+5*vx,vy)+howmanyballs(1+5*vx,vy)+howmanyballs(2+5*vx,vy)+howmanyballs(3+5*vx,vy)+howmanyballs(4+5*vx,vy)
+				vaux = howmanyballs(0+5*vx,vy)+howmanyballs(1+5*vx,vy)+howmanyballs(2+5*vx,vy)+howmanyballs(3+5*vx,vy)+howmanyballs(4+5*vx,vy)
+				if(vaux.ne.0) then	
 					vwrite = vperfil(0+5*vx,vy)+vperfil(1+5*vx,vy)+vperfil(2+5*vx,vy)+vperfil(3+5*vx,vy)+vperfil(4+5*vx,vy)
 					
 					vwrite = sqrt(vwrite)/(1.d0*vaux)
@@ -179,8 +180,8 @@ do n=ninit,200*10000
 		!Perfil de velocidade de cada 1d (1 célula) em X
 		do vy = 0,nyip
 			do vx = 0,nxis-1
+				vaux = howmanyballs(vx,vy)
 				if(vaux.ne.0) then
-					vaux = howmanyballs(vx,vy)
 					vwrite = vperfil(vx,vy)
 					
 					vwrite = sqrt(vwrite)/(1.d0*vaux)

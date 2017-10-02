@@ -20,8 +20,7 @@ call cpu_time(start)
 
 open(unit=30,file='initflowL20d.dat',status='old')
 open(unit=31,file='vestabflowL20d.dat',status='unknown')
-open(unit=32,file='vper1flowL20d.dat',status='unknown')
-open(unit=33,file='vper2flowL20d.dat',status='unknown')
+open(unit=32,file='vperflowL20d.dat',status='unknown')
 !open(unit=69,file='backup.dat',status='old')
 
  read(30,*) Nballs,Nroughs,rmax,Lx,Ly,Lcell,nxis,nyip,rrough,deltarough,nyiprough
@@ -149,8 +148,10 @@ do n=ninit,200*10000
 			howmanyballs(xis,ypsilon) = howmanyballs(xis,ypsilon) + 1
 		end select
 		
-		vperfil(xis,ypsilon) = vperfil(xis,ypsilon) + (norm2(v(a,:)))**2
-		vbarra = vbarra + (norm2(v(a,:)))**2
+		if(mod(n,1000).eq.0) then
+			vperfil(xis,ypsilon) = vperfil(xis,ypsilon) + (norm2(v(a,:)))**2
+			vbarra = vbarra + (norm2(v(a,:)))**2
+		end if
 		
 	end do
 	
@@ -161,35 +162,19 @@ do n=ninit,200*10000
 
 	if(mod(n,10000).eq.0) then
 		!Perfil de velocidade a cada 5d (5 células) em X
-		do vy = 0,nyip
+		!E 5 células em y
+		do vy = 0,4
 			do vx = 0,((nxis/5)-1)
-				vaux = howmanyballs(0+5*vx,vy)+howmanyballs(1+5*vx,vy)+howmanyballs(2+5*vx,vy)+howmanyballs(3+5*vx,vy)+howmanyballs(4+5*vx,vy)
+				vaux = howmanyballs(1+5*vx,1+5*vy)
 				if(vaux.ne.0) then	
-					vwrite = vperfil(0+5*vx,vy)+vperfil(1+5*vx,vy)+vperfil(2+5*vx,vy)+vperfil(3+5*vx,vy)+vperfil(4+5*vx,vy)
+					vwrite = vperfil(1+5*vx,1+5*vy)
 					
 					vwrite = sqrt(vwrite)/(1.d0*vaux)
 				else
 					vwrite = 0.d0
 				end if
 				
-				write(32,*) h*(n-1),vwrite,5*(vx+1),nyip
-				
-			end do			
-		end do
-		
-		!Perfil de velocidade de cada 1d (1 célula) em X
-		do vy = 0,nyip
-			do vx = 0,nxis-1
-				vaux = howmanyballs(vx,vy)
-				if(vaux.ne.0) then
-					vwrite = vperfil(vx,vy)
-					
-					vwrite = sqrt(vwrite)/(1.d0*vaux)
-				else
-					vwrite = 0.d0
-				end if
-				
-				write(33,*) h*(n-1),vwrite,vx,nyip	
+				write(32,*) h*(n-1),vwrite,1+5*vx,1+5*vy
 				
 			end do			
 		end do
@@ -527,7 +512,6 @@ close(25)
 close(30)
 close(31)
 close(32)
-close(33)
 
 contains
 

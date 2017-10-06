@@ -1,20 +1,50 @@
-program flow_posinit
+program flow_flow
 implicit none
 double precision, dimension (:,:), allocatable :: Sold,Snow,S,v
 double precision, dimension (2) :: D
-double precision, dimension (:,:,:), allocatable :: Fnormal
+double precision, dimension (:,:,:), allocatable :: Fnormal,vperfil
 double precision, dimension (:,:), allocatable :: FR,Fparede,Fatrito,Froughness
 double precision, dimension (:), allocatable :: R,Inercia,tetaold,tetanow,teta,omega,Torque,ang,m,Srough
 integer, dimension (:,:,:), allocatable :: Cell,Cellrough
-integer, dimension (:,:), allocatable :: marcabola,marcarough
+integer, dimension (:,:), allocatable :: marcabola,marcarough,howmanyballs
 double precision :: h,K,gamaN1,gamaN2,gamaS,Lx,Ly,g,minormal,miparede,Lcell,rmax,densidade
-double precision :: rrough,deltarough,saveme,Hmax,flow_angle1
-double precision :: scale,xinfesq,yinfesq,xsupdir,ysupdir
+double precision :: flow_angle,flow_angle1,rrough,deltarough,saveme,Hmax,ktotal
+double precision :: scale,xinfesq,yinfesq,xsupdir,ysupdir,fwallcheck
 integer :: i,j,n,Nballs,cont,a,b,c,veri,verfim,hori,horfim,penbola,ultbola
 integer :: xis,ypsilon,nxis,nyip,hor,ver,verclone,verclonei,verclonefim
-integer :: Nroughs,rugoshor,rugosver,rugosi,rugosfim,nyiprough
-real :: start,finish,hours,mins,secs
+integer :: Nroughs,rugoshor,rugosver,rugosi,rugosfim,nyiprough,ninit
+real :: start,finish,days,hours,mins
 call cpu_time(start)
+
+ ninit = 1 !O tempo começa em 1, mas caso tenha que ler do backup ele atualiza o valor ali embaixo
+
+open(unit=30,file='initflowH10.dat',status='old')
+open(unit=31,file='ktotalH10T20.dat',status='unknown')
+!open(unit=69,file='backup.dat',status='old')
+
+ read(30,*) Nballs,Nroughs,rmax,Lx,Ly,Lcell,nxis,nyip,rrough,deltarough,nyiprough
+ read(30,*) h,K,densidade,g,gamaN1,gamaN2,gamaS,minormal,miparede,Hmax
+ read(30,*) scale,xinfesq,yinfesq,xsupdir,ysupdir
+ !read(69,*) ninit
+ 
+!close(69)
+ 
+allocate(Sold(Nballs,2),Snow(Nballs,2),S(Nballs,2),v(Nballs,2),m(Nballs),R(Nballs))
+allocate(tetaold(Nballs),tetanow(Nballs),teta(Nballs),omega(Nballs),Inercia(Nballs))
+allocate(Fnormal(Nballs,Nballs,2),Fparede(Nballs,2),FR(Nballs,2),Froughness(Nballs,2))
+allocate(Torque(Nballs),Fatrito(Nballs,2),ang(Nballs))
+allocate(Cell(-1:nxis,0:nyip,Nballs),marcabola(-1:nxis,0:nyip))
+allocate(Cellrough(0:nxis-1,0:nyiprough,Nroughs),marcarough(0:nxis-1,0:nyiprough),Srough(Nroughs))
+allocate(vperfil(0:nxis-1,0:nyip,2))
+allocate(howmanyballs(0:nxis-1,0:nyip))
+
+! As matrizez posição, velocidade e força resultante são estruturadas de forma que a linha i seja a bolinha i 
+!e as colunas 1,2 as direções x,y respectivamente
+! A matriz das forças de contato é estruturada sendo a força da bolinha i com a bolinha j localizada na posição Fij
+!só que uma para cada dimensão sendo 1,2 x,y respectivamente
+!**UPDATE** Subrotina das forças de contato e com a parede
+!**UPDATE** Rotação certa nas paredes
+!**UPDATE** Escala de unidades certa
 
 ! As matrizez posição, velocidade e força resultante são estruturadas de forma que a linha i seja a bolinha i 
 !e as colunas 1,2 as direções x,y respectivamente
@@ -25,94 +55,18 @@ call cpu_time(start)
 !**UPDATE** Escala de unidades certa
 
 !******************************IMPORTANTE*****************************************
-!- O sistema de unidades é o SI
-!- O número de bolas é o máximo para preencher o volume da caixa, exceto as 2 primeiras fileiras
-!- As divisões de Lx/2*rmax e Ly/2*rmax, ou seja, Lx/Lcell e Ly/Lcell têm que ser inteiras
-!- A divisão de Lx/(2.d0*rrough+deltarough) tem que ser inteira
-!- Lcell = 2*rmax, ou seja, nenhum raio pode ser maior que rmax, portanto,
-!para flutuar os outros raios subtraia desse valor
+!- A condição inicial e os parâmetros foram importados do programa 'posinitTESTE.f90'
+!- Arquivo 30, ler a condição inicial normal
+!- Arquivo 69, ler do backup
+!- Ajustar o ângulo antes de simular
 
-!ANTES DE SIMULAR:
-!- Ajeitar o scale e a bounding box
-!- Verificar se as condições estão sendo satisfeitas
-!*********************************************************************************
-!Dados que precisam satisfazer condições especiais
+ flow_angle1 = (20.d0)*0.01745329252d0
 
- rmax = 1.d0 / 100.d0                         !Maior raio das bolinhas (m)
- Lcell = 2.d0*rmax                            !Tamanho da célula (m)
- rrough = 2.d0*rmax                           !Raio da rugosidade (m)
- deltarough = 0.d0 / 100.d0                   !Espaço entre as rugosidades (m)
- Lx = 100.d0*Lcell                            !Tamanho da parede em x (m)
- Ly = (10.d0 + 2.d0 + 5.d0)*Lcell                    !Tamanho da parede em y (m)
+ do j=1,Nballs
+	read(30,*) S(j,1),S(j,2),v(j,1),v(j,2),m(j)
+	read(30,*) R(j),teta(j),omega(j),Inercia(j)
+ end do
 !*********************************************************************************
-!Scale e bounding box
-
- if(Lx.lt.Ly) then
-	scale = 500.d0/Lx
- else
-	scale = 500.d0/Ly
- end if
- xinfesq = 0
- yinfesq = -1
- xsupdir = scale*Lx
- ysupdir = scale*Ly + 1
-!*********************************************************************************
-!Número de células em x, x tem uma a mais para clonar
- saveme = (Lx/Lcell)                          
- if((saveme - int(saveme)).le.0.1d0) then
-	nxis = int(saveme)
- else if((saveme - int(saveme)).gt.0.9d0) then
-	nxis = int(saveme)+1
- end if 
- 
-!Número de células em y
- saveme = (Ly/Lcell)                        
- if((saveme - int(saveme)).le.0.1d0) then
-	nyip = int(saveme)-1
- else if((saveme - int(saveme)).gt.0.9d0) then
-	nyip = int(saveme)
- end if
- 
-!Número de células em y para as rugosidades
- saveme = rrough/Lcell                      
- if((saveme - int(saveme)).le.0.1d0) then
-	nyiprough = int(saveme)
- else if((saveme - int(saveme)).gt.0.9d0) then
-	nyiprough = int(saveme)+1
- end if
- 
-!Número de rugosidades
- saveme = (Lx/(2.d0*rrough+deltarough))                   
- if((saveme - int(saveme)).le.0.1d0) then
-	Nroughs = int(saveme)
- else if((saveme - int(saveme)).gt.0.9d0) then
-	Nroughs = int(saveme)+1
- end if
- 
- !Número de bolas
- !Tirei um a mais pra poder dar CINCO MANO células antes de bater na parede
- Nballs = (nxis)*(nyip-nyiprough-5)
- 
-!*********************************************************************************
- h = 10.0**(-4.d0)                            !Passo de tempo (s)
- K = 2.d0*10.d0**(5.d0)                       !Constante de elasticidade (N/m)
- densidade = 7860.d0                          !Densidade da bolinha (kg/m³)
- g = -9.8665d0                                !Gravidade (m/s²)
- 
- !Coeficiente de restituição = 0.92
- gamaN1 = 3.0506d0                            !Coeficiente de dissipação entre as bolinhas
- gamaN2 = 4.3372d0                            !Coeficiente de dissipação entre a bola e a parede/rugosidade
- gamaS = 5.d0                                 !Coeficiente da força tangente, protege para o fat não dar pau
- minormal = 0.5d0                             !Coeficiente de atrito entre as bolinhas
- miparede = 0.5d0                             !Coeficiente de atrito da parede
-!*********************************************************************************
-
- allocate(Sold(Nballs,2),Snow(Nballs,2),S(Nballs,2),v(Nballs,2),m(Nballs),R(Nballs))
- allocate(tetaold(Nballs),tetanow(Nballs),teta(Nballs),omega(Nballs),Inercia(Nballs))
- allocate(Fnormal(Nballs,Nballs,2),Fparede(Nballs,2),FR(Nballs,2),Froughness(Nballs,2))
- allocate(Torque(Nballs),Fatrito(Nballs,2),ang(Nballs))
- allocate(Cell(-1:nxis,0:nyip,Nballs),marcabola(-1:nxis,0:nyip))
- allocate(Cellrough(0:nxis-1,0:nyiprough,Nroughs),marcarough(0:nxis-1,0:nyiprough),Srough(Nroughs))
  
 !Colocar as rugosidades em suas células
  Cellrough = -1
@@ -138,9 +92,6 @@ call cpu_time(start)
 	
  end do
 
-!Subrotina da posiçao inicial
- call pos_init(S,v,teta,omega,ang,R,m,Inercia,densidade,rmax,Lcell,nxis,nyip,nyiprough,Nballs)
-
 !Como o método é de passos múltiplos, calcula-se uma iteração fazendo "s = s0 + v*t" para cada bolinha, analogamente para o ângulo
  do i=1,Nballs
 	Sold(i,:)= S(i,:)
@@ -151,12 +102,17 @@ call cpu_time(start)
 
 !Para gerar o arquivo da condiçao inicial
  cont = 0
+ ang = mod(teta,6.28318530718)
  call salva_eps(cont,Lx,Ly,Nballs,R,S(:,1),S(:,2),ang,Nroughs,rrough,Srough,scale,xinfesq,yinfesq,xsupdir,ysupdir)
  
 !Loop para correr o tempo
-do n=1,4*10000
+do n=ninit,60*10000
 	Cell = -1
 	marcabola = -1
+	howmanyballs = 0
+	
+	ktotal = 0.d0
+	vperfil = 0.d0
 	
 	do a=1,Nballs
 		!A última célula (nxis) e a primeira (-1) servem apenas para calcular as forças NÃO HÁ BOLINHAS LÁ
@@ -184,12 +140,38 @@ do n=1,4*10000
 		select case(marcabola(xis,ypsilon))
 		case(-1)
 			marcabola(xis,ypsilon) = a
+			howmanyballs(xis,ypsilon) = howmanyballs(xis,ypsilon) + 1
 		case default
 			Cell(xis,ypsilon,a) = marcabola(xis,ypsilon)
 			marcabola(xis,ypsilon) = a
+			howmanyballs(xis,ypsilon) = howmanyballs(xis,ypsilon) + 1
 		end select
 		
+		if(mod(n,5000).eq.0) then
+			ktotal = ktotal + m(a)*(norm2(v(a,:))**2.d0)/2.d0
+			vperfil(xis,ypsilon,1) = vperfil(xis,ypsilon,1) + v(a,1)
+			vperfil(xis,ypsilon,2) = vperfil(xis,ypsilon,2) + v(a,2)
+		end if
+		
 	end do
+	
+	!Para salvar os dados
+	if(mod(n,5000).eq.0) then
+		fwallcheck = 0.d0
+		do a=1,Nballs
+			fwallcheck = fwallcheck + norm2(Fparede(a,:))
+		end do
+		cont = cont + 1
+		write(31,*) h*(n-1), ktotal, fwallcheck
+		call salva_velo(cont,nxis,nyip,vperfil)
+	end if
+	
+	!Para o ângulo de escoamento, inicialmente dá-se um ângulo maior para retirarmos o efeito da "história"
+	if(n.le.100) then
+		flow_angle = (28.d0)*0.01745329252d0
+	else 
+		flow_angle = flow_angle1
+	end if
 	
 	!Clonar as bolas de nxis-1 para -1
 	marcabola(-1,:) = marcabola(nxis-1,:)
@@ -205,8 +187,8 @@ do n=1,4*10000
 	Fatrito = 0.d0
 	Froughness = 0.d0
 	Torque = 0.d0
-	FR(:,1) = 0.d0
-	FR(:,2) = m(:)*g
+	FR(:,1) = m(:)*g*sin(flow_angle)
+	FR(:,2) = m(:)*g*cos(flow_angle)
 
 	do c=0,nyip
 		do b=0,nxis-1
@@ -465,51 +447,56 @@ do n=1,4*10000
 	end do
 	
 	ang = mod(teta,6.28318530718)
-	! if(mod(n,7500).eq.0) then
-		! cont = cont + 1
-		! call salva_eps(cont,Lx,Ly,Nballs,R,S(:,1),S(:,2),ang,Nroughs,rrough,Srough,scale,xinfesq,yinfesq,xsupdir,ysupdir)
-		! write(*,*) cont,n*h
-	! end if
+	
+	if(mod(n,5000).eq.0) then
+		call salva_eps(cont,Lx,Ly,Nballs,R,S(:,1),S(:,2),ang,Nroughs,rrough,Srough,scale,xinfesq,yinfesq,xsupdir,ysupdir)
+	end if
+	
+	!Para escrever o arquivo de backup
+	if(mod(n,10*10000).eq.0) then
+		open(unit=69,file='backup.dat',status='unknown')
+		
+		write(69,*) Nballs,Nroughs,rmax,Lx,Ly,Lcell,nxis,nyip,rrough,deltarough,nyiprough
+		write(69,*) h,K,densidade,g,gamaN1,gamaN2,gamaS,minormal,miparede,Hmax
+		write(69,*) scale,xinfesq,yinfesq,xsupdir,ysupdir
+		write(69,*) flow_angle1 
+		write(69,*) n+1
+		do j=1,Nballs
+			write(69,*) S(j,1),S(j,2),v(j,1),v(j,2),m(j)
+			write(69,*) R(j),teta(j),omega(j),Inercia(j)
+		end do			
+		
+		close(69)
+	end if
+	
 	
  end do !Aqui termina o loop do tempo
- 
- cont = cont + 1
- call salva_eps(cont,Lx,Ly,Nballs,R,S(:,1),S(:,2),ang,Nroughs,rrough,Srough,scale,xinfesq,yinfesq,xsupdir,ysupdir)
- 
- Hmax = 0.d0
- do j=1,Nballs
-	if(S(j,2).gt.Hmax) then
-		Hmax = S(j,2)
-		i = j
-	end if
- end do
- Hmax = Hmax + R(i)
 
-open(unit=51,file='initflowH10.dat',status='unknown')
- write(51,*) Nballs,Nroughs,rmax,Lx,Ly,Lcell,nxis,nyip,rrough,deltarough,nyiprough
- write(51,*) h,K,densidade,g,gamaN1,gamaN2,gamaS,minormal,miparede,Hmax
- write(51,*) scale,xinfesq,yinfesq,xsupdir,ysupdir
+call cpu_time(finish)
+ days = int((finish-start)/86400)
+ hours = int((finish-start)/3600)
+ mins = int((finish-start)/60)
 
- do j=1,Nballs
-	write(51,*) S(j,1),S(j,2),v(j,1),v(j,2),m(j)
-	write(51,*) R(j),teta(j),omega(j),Inercia(j)
- end do
- 
-close(unit=51)
- 
- 
- 
 deallocate(Sold,Snow,S,v,m,R)
 deallocate(tetaold,tetanow,teta,omega,Inercia)
 deallocate(Fnormal,Fparede,FR)
 deallocate(Torque,Fatrito,ang)
 deallocate(Cell,marcabola)
 deallocate(Cellrough,marcarough,Srough,Froughness)
+deallocate(vperfil)
+deallocate(howmanyballs)
 
- call cpu_time(finish)
- hours = int((finish-start)/3600)
- mins = int((finish-start)/60)
- secs = int((finish - start) - hours - mins)
+open(unit=25,file='dadosflow.txt',status='unknown')
+write(25,*) "Número de bolas :", Nballs
+write(25,*) "Altura no inicio do escoamento (Hmax) :", Hmax
+write(25,*) "Altura que o cara usa no artigo (N*d/L) :", (Nballs*2.d0*rmax)/(Lx)
+write(25,*) "Ângulo de escoamento (graus) :", flow_angle*57.29577951290d0
+write(25,*) "Tempo de simulação (segundos) :", n*h
+write(25,*) "O tempo para rodar foi de ",days," dias ",hours," horas ",mins," minutos"
+close(25)
+
+close(30)
+close(31)
 
 contains
 
@@ -714,49 +701,11 @@ subroutine roughness_force(Nballs,j,rrough,K,gamaS,gamaN2,miparede,D,v,omega,R,T
 
 end subroutine
 
-subroutine pos_init(S,v,teta,omega,ang,R,m,Inercia,densidade,rmax,Lcell,nxis,nyip,nyiprough,Nballs)
- implicit none
-
- double precision, dimension (Nballs,2), intent (inout) :: S,v
- double precision, dimension (Nballs), intent (inout) :: teta,omega,ang,R,m,Inercia
- double precision, intent (in) :: rmax,Lcell,densidade
- integer, intent (in) :: Nballs,nxis,nyip,nyiprough
- 
- integer :: i,j,initrandom,bola,xis,yip
- integer, dimension (3) :: timeArray
- double precision :: prox
- 
- call itime(timeArray)
- initrandom = rand (timeArray(1)+timeArray(2)+timeArray(3))
-
- bola = 0
- do yip= nyiprough+1,nyip
-	do xis= 0,nxis-1
-		bola = bola + 1
-		
-		if (bola.le.Nballs) then		
-			S(bola,1) = Lcell*( ((0.5d0 + 1.0d0*xis)) + 0.03d0*(rand(0)-0.5d0) )
-			S(bola,2) = Lcell*( ((0.5d0 + 1.0d0*yip)) + 0.03d0*(rand(0)-0.5d0) )
-			R(bola)   = rmax*(0.9d0 + (rand(0)-0.5d0)*(5.d0/100.d0))			
-		end if
-		
-	end do
- end do
- 
- m = densidade*4.18879020479*R*R*R ! m = p*(4/3)*pi*R³
- Inercia = 0.4d0*m*R*R !Momento de inércia da ESFERA: (2/5)*mr^2
- v = 0.d0
- omega = 0.d0
- teta = 0.d0
- ang = mod(teta,6.28318530718)
- 
-end subroutine
-
 subroutine salva_eps(ttwrite,Lx,Ly,parts,part_raio,part_pos_x,part_pos_y,part_ang,nroughs,rough_raio,rough_pos_x &
 & ,scale,xinfesq,yinfesq,xsupdir,ysupdir)
  implicit none
 
- integer, intent (in) :: ttwrite, parts
+ integer, intent (in) :: ttwrite,parts,nroughs
   
  double precision, dimension (1:parts), intent (in) :: part_raio
  double precision, dimension (1:parts), intent (in) :: part_pos_x
@@ -766,7 +715,6 @@ subroutine salva_eps(ttwrite,Lx,Ly,parts,part_raio,part_pos_x,part_pos_y,part_an
 
  double precision, dimension (1:nroughs), intent (in) :: rough_pos_x
  double precision, intent (in) :: rough_raio
- integer, intent (in) :: nroughs
  
  integer :: i
  double precision :: sclone
@@ -869,60 +817,38 @@ subroutine salva_eps(ttwrite,Lx,Ly,parts,part_raio,part_pos_x,part_pos_y,part_an
   
 end subroutine salva_eps
 
-! subroutine outputfiles(flow_angle1)
-! implicit none
+subroutine salva_velo(ttwrite,nxis,nyip,vperfil)
+ implicit none
 
-! double precision, intent(in) :: flow_angle1
-
-! integer :: j,flowint
-! double precision:: saveme
-! character (len = 19) :: filename1
-!character (len = 17) :: filename2
-! character (len = 18) :: filename2
-
- ! filename1="initflow0teta00.dat"
- !filename2="callprogteta00.sh"
- ! filename2="callprogteta00.bat"
-
- ! saveme = flow_angle1/0.01745329252d0                
- ! if((saveme - int(saveme)).le.0.1d0) then
-	! flowint = int(saveme)
- ! else if((saveme - int(saveme)).gt.0.9d0) then
-	! flowint = int(saveme) + 1
- ! end if
-
- ! filename1(9:9)=CHAR(48+)
- ! filename1(14:14)=CHAR(48+(mod(flowint,100)/10))
- ! filename1(15:15)=CHAR(48+mod(flowint,100)-10*(mod(flowint,100)/10))
-
- ! filename2(13:13)=CHAR(48+(mod(flowint,100)/10))
- ! filename2(14:14)=CHAR(48+mod(flowint,100)-10*(mod(flowint,100)/10))
+ integer, intent (in) :: ttwrite,nxis,nyip
+ double precision, dimension (0:nxis-1,0:nyip,2), intent (in) :: vperfil
  
- ! open(unit=51,file=filename1,status='unknown')
- ! open(unit=52,file=filename2,status='unknown')
-
- ! write(52,70)
- ! write(52,71)
-
- ! write(51,*) Nballs,Nroughs,rmax,Lx,Ly,Lcell,nxis,nyip,rrough,deltarough,nyiprough
- ! write(51,*) h,K,densidade,g,gamaN1,gamaN2,gamaS,minormal,miparede,Hmax
- ! write(51,*) scale,xinfesq,yinfesq,xsupdir,ysupdir
- ! write(51,*) flow_angle1
+ integer :: i,x,y
+ character (len = 18) :: filename1
  
- ! do j=1,Nballs
-	! write(51,*) S(j,1),S(j,2),v(j,1),v(j,2),m(j)
-	! write(51,*) R(j),teta(j),omega(j),Inercia(j)
- ! end do
+ !Criação do arquivo de saída - número entre 000 e 999!!!
+ if(ttwrite.ne.0) then
+	filename1="vperH10T16.000.dat"
+    filename1(14:14)=CHAR(48+mod(ttwrite,100)-10*(mod(ttwrite,100)/10))
+    filename1(13:13)=CHAR(48+(mod(ttwrite,100)/10))
+    filename1(12:12)=CHAR(48+ttwrite/100)
+ else
+	filename1="vperH10T16.000.dat"
+ end if
 
- ! call execute_command_line (",filename2,")
+ open(unit=210,file=filename1,status='unknown')
  
-! 70 format('gfortran flow_flow')
-!71 format ('./a.out &')
-! 71 format ('a.exe')
+ 
+ do y=0,nyip
+	do x=0,((nxis/5)-1)
+		 write(210,*) 5*x,y,vperfil(5*x,y,1),vperfil(5*x,y,2)
+	end do
+ end do
 
-! close(unit=51)
-! close(unit=52)
+ 
+ close(unit=210)
+  
+end subroutine salva_velo
 
-! end subroutine
 
-end program flow_posinit
+end program flow_flow

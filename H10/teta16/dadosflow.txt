@@ -1,0 +1,6 @@
+ Número de bolas :        1000
+ Altura no inicio do escoamento (Hmax) :  0.18278192297783649     
+ Altura que o cara usa no artigo (N*d/L) :   10.000000000000000     
+ Ângulo de escoamento (graus) :   16.000000000001069     
+ Tempo de simulação (segundos) :   80.000100000000003     
+ O tempo para rodar foi de    0.0000000      dias    8.0000000      horas    500.00000      minutos

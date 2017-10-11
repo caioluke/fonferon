@@ -8,7 +8,7 @@ double precision, dimension (:), allocatable :: R,Inercia,tetaold,tetanow,teta,o
 integer, dimension (:,:,:), allocatable :: Cell,Cellrough
 integer, dimension (:,:), allocatable :: marcabola,marcarough
 double precision :: h,K,gamaN1,gamaN2,gamaS,Lx,Ly,g,minormal,miparede,Lcell,rmax,densidade
-double precision :: rrough,deltarough,saveme,Hmax,flow_angle1
+double precision :: rrough,deltarough,saveme,Hmax,flow_angle1,ktotal
 double precision :: scale,xinfesq,yinfesq,xsupdir,ysupdir
 integer :: i,j,n,Nballs,cont,a,b,c,veri,verfim,hori,horfim,penbola,ultbola
 integer :: xis,ypsilon,nxis,nyip,hor,ver,verclone,verclonei,verclonefim
@@ -41,9 +41,9 @@ call cpu_time(start)
  rmax = 1.d0 / 100.d0                         !Maior raio das bolinhas (m)
  Lcell = 2.d0*rmax                            !Tamanho da célula (m)
  rrough = 2.d0*rmax                           !Raio da rugosidade (m)
- deltarough = 0.d0 / 100.d0                   !Espaço entre as rugosidades (m)
+ deltarough = 0.d0                            !Espaço entre as rugosidades (m)
  Lx = 100.d0*Lcell                            !Tamanho da parede em x (m)
- Ly = (10.d0 + 2.d0 + 20.d0)*Lcell            !Tamanho da parede em y (m)
+ Ly = (10.d0 + 2.d0 + 5.d0)*Lcell                    !Tamanho da parede em y (m)
 !*********************************************************************************
 !Scale e bounding box
 
@@ -90,18 +90,18 @@ call cpu_time(start)
  end if
  
  !Número de bolas
- !Tirei um a mais pra poder dar DEZ AAAAA células antes de bater na parede
- Nballs = (nxis)*(nyip-nyiprough-20)
+ !Tirei um a mais pra poder dar CINCO MANO células antes de bater na parede
+ Nballs = (nxis)*(nyip-nyiprough-5)
  
 !*********************************************************************************
  h = 10.0**(-4.d0)                            !Passo de tempo (s)
- K = 2.d0*10.d0**(5.d0)                       !Constante de elasticidade (N/m)
- densidade = 7860.d0                          !Densidade da bolinha (kg/m³)
+ K = 10.d0**(5.d0)                       !Constante de elasticidade (N/m)
+ densidade = 2500.d0                          !Densidade da bolinha (kg/m³)
  g = -9.8665d0                                !Gravidade (m/s²)
  
  !Coeficiente de restituição = 0.92
- gamaN1 = 3.0506d0                            !Coeficiente de dissipação entre as bolinhas
- gamaN2 = 4.3372d0                            !Coeficiente de dissipação entre a bola e a parede/rugosidade
+ gamaN1 = 1.4219d0                           !Coeficiente de dissipação entre as bolinhas
+ gamaN2 = 1.5485d0                            !Coeficiente de dissipação entre a bola e a parede/rugosidade
  gamaS = 5.d0                                 !Coeficiente da força tangente, protege para o fat não dar pau
  minormal = 0.5d0                             !Coeficiente de atrito entre as bolinhas
  miparede = 0.5d0                             !Coeficiente de atrito da parede
@@ -141,6 +141,7 @@ call cpu_time(start)
 !Subrotina da posiçao inicial
  call pos_init(S,v,teta,omega,ang,R,m,Inercia,densidade,rmax,Lcell,nxis,nyip,nyiprough,Nballs)
 
+ 
 !Como o método é de passos múltiplos, calcula-se uma iteração fazendo "s = s0 + v*t" para cada bolinha, analogamente para o ângulo
  do i=1,Nballs
 	Sold(i,:)= S(i,:)
@@ -154,9 +155,11 @@ call cpu_time(start)
  call salva_eps(cont,Lx,Ly,Nballs,R,S(:,1),S(:,2),ang,Nroughs,rrough,Srough,scale,xinfesq,yinfesq,xsupdir,ysupdir)
  
 !Loop para correr o tempo
-do n=1,4*10000
+do n=1,3*10000
 	Cell = -1
 	marcabola = -1
+	
+	ktotal = 0.d0
 	
 	do a=1,Nballs
 		!A última célula (nxis) e a primeira (-1) servem apenas para calcular as forças NÃO HÁ BOLINHAS LÁ
@@ -189,7 +192,15 @@ do n=1,4*10000
 			marcabola(xis,ypsilon) = a
 		end select
 		
+		if(mod(n,5000).eq.0) then
+			ktotal = ktotal + m(a)*(norm2(v(a,:))**2.d0)/2.d0 + m(a)*abs(g)*S(a,2)
+		end if
+		
 	end do
+	
+	! if(mod(n,5000).eq.0) then
+		! write(*,*) h*(n-1), ktotal
+	! end if
 	
 	!Clonar as bolas de nxis-1 para -1
 	marcabola(-1,:) = marcabola(nxis-1,:)
@@ -465,11 +476,10 @@ do n=1,4*10000
 	end do
 	
 	ang = mod(teta,6.28318530718)
-	! if(mod(n,7500).eq.0) then
-		! cont = cont + 1
-		! call salva_eps(cont,Lx,Ly,Nballs,R,S(:,1),S(:,2),ang,Nroughs,rrough,Srough,scale,xinfesq,yinfesq,xsupdir,ysupdir)
-		! write(*,*) cont,n*h
-	! end if
+	if(mod(n,7500).eq.0) then
+		cont = cont + 1
+		call salva_eps(cont,Lx,Ly,Nballs,R,S(:,1),S(:,2),ang,Nroughs,rrough,Srough,scale,xinfesq,yinfesq,xsupdir,ysupdir)
+	end if
 	
  end do !Aqui termina o loop do tempo
  
@@ -735,8 +745,8 @@ subroutine pos_init(S,v,teta,omega,ang,R,m,Inercia,densidade,rmax,Lcell,nxis,nyi
 		bola = bola + 1
 		
 		if (bola.le.Nballs) then		
-			S(bola,1) = Lcell*( ((0.5d0 + 1.0d0*xis)) + 0.03d0*(rand(0)-0.5d0) )
-			S(bola,2) = Lcell*( ((0.5d0 + 1.0d0*yip)) + 0.03d0*(rand(0)-0.5d0) )
+			S(bola,1) = Lcell*( ((0.5d0 + 1.0d0*xis)) )!+ 0.03d0*(rand(0)-0.5d0) )
+			S(bola,2) = Lcell*( ((0.5d0 + 1.0d0*yip)) )!+ 0.03d0*(rand(0)-0.5d0) )
 			R(bola)   = rmax*(0.9d0 + (rand(0)-0.5d0)*(5.d0/100.d0))			
 		end if
 		

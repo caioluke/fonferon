@@ -66,7 +66,7 @@ program colSphN
 			V = 0.d0
 			W = 0.d0
 			
-			W(1) = 2.d0(P/10.d0)
+			W(1) = 2.d0*(P/10.d0)
 	
 			S(:,1) = Sa(:,1)
 			ThetaA(1) = Itheta(1)
@@ -118,9 +118,9 @@ program colSphN
 			end do
 			
 			if (l.eq.(-1)) then
-				write(129,*) 2.d0(P/10.d0), t, i, j
+				write(129,*) 2.d0*(P/10.d0), t, i, j
 			else 
-				write(120,*) 2.d0(P/10.d0), t, i, j
+				write(120,*) 2.d0*(P/10.d0), t, i, j
 			end if
 			
 			Itheta(1) = Itheta(1) + (P/180.d0)

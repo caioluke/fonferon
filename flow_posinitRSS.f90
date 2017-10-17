@@ -7,12 +7,9 @@ double precision, dimension (:,:), allocatable :: FR,Fparede,Fatrito,Froughness
 double precision, dimension (:), allocatable :: R,Inercia,tetaold,tetanow,teta,omega,Torque,ang,m,Srough
 integer, dimension (:,:,:), allocatable :: Cell,Cellrough
 integer, dimension (:,:), allocatable :: marcabola,marcarough
-double precision :: h,gamaS,Lx,Ly,g,minormal,miparede,Lcell,rmax,densidade
+double precision :: h,K,gamaN,gamaS,Lx,Ly,g,minormal,miparede,Lcell,rmax,densidade
 double precision :: rrough,deltarough,saveme,Hmax,flow_angle1
 double precision :: scale,xinfesq,yinfesq,xsupdir,ysupdir
-
-double precision :: K1,K2,K3,gamaN1,gamaN2,gamaN3,mmax
-
 integer :: i,j,n,Nballs,cont,a,b,c,veri,verfim,hori,horfim,penbola,ultbola
 integer :: xis,ypsilon,nxis,nyip,hor,ver,verclone,verclonei,verclonefim
 integer :: Nroughs,rugoshor,rugosver,rugosi,rugosfim,nyiprough
@@ -41,12 +38,12 @@ call cpu_time(start)
 !*********************************************************************************
 !Dados que precisam satisfazer condições especiais
 
- rmax = (5.d0)*((10.d0)**(-5.d0))            !Maior raio das bolinhas (m)
- Lcell = 2.d0*rmax                           !Tamanho da célula (m)
- rrough = 2.d0*rmax                          !Raio da rugosidade (m)
- deltarough = 0.d0                           !Espaço entre as rugosidades (m)
- Lx = 100.d0*Lcell                            !Tamanho da parede em x (m)
- Ly = (10.d0 + 2.d0 + 5.d0)*Lcell            !Tamanho da parede em y (m)
+ rmax = 5.d0*((10.d0)**(-5.d0))             !Maior raio das bolinhas (m)
+ Lcell = 2.d0*rmax                            !Tamanho da célula (m)
+ rrough = 2.d0*rmax                           !Raio da rugosidade (m)
+ deltarough = 0.d0                            !Espaço entre as rugosidades (m)
+ Lx = 100.d0*Lcell                             !Tamanho da parede em x (m)
+ Ly = (10.d0 + 2.d0 + 5.d0)*Lcell             !Tamanho da parede em y (m)
 !*********************************************************************************
 !Scale e bounding box
 
@@ -55,7 +52,6 @@ call cpu_time(start)
  else
 	scale = 500.d0/Ly
  end if
- 
  xinfesq = 0
  yinfesq = -1
  xsupdir = scale*Lx
@@ -94,26 +90,18 @@ call cpu_time(start)
  end if
  
  !Número de bolas
- !Tirei um a mais pra poder dar DEZ AAAAA células antes de bater na parede
+ !Tirei um a mais pra poder dar CINCO MANO células antes de bater na parede
  Nballs = (nxis)*(nyip-nyiprough-5)
  
 !*********************************************************************************
- h = 10.0**(-4.d0)                            !Passo de tempo (s)
+ h = 10.0**(-5.d0)                            !Passo de tempo (s)
+ K = 246955971.00878513d0                     !Constante de elasticidade (N/m)
  densidade = 2500.d0                          !Densidade da bolinha (kg/m³)
- g = -9.8665d0                                !Gravidade (m/s²)
+ g = -9.80665d0                               !Gravidade (m/s²)
  
  !Coeficiente de restituição = 0.92
- mmax = densidade*4.18879020479*rmax*rmax*rmax
- 
- gamaN1 = 10.24d0*((10.d0)**(-7.d0))  !6.86d0*((10.d0)**(-8.d0))         !Coeficiente de dissipação entre bolas
- gamaN2 = 39.37d0*((10.d0)**(-7.d0))  !14.27d0*((10.d0)**(-8.d0))          !Coeficiente de dissipação entre bola e parede
- gamaN3 = 20.45d0*((10.d0)**(-7.d0))  !8.97d0*((10.d0)**(-8.d0))           !Coeficiente de dissipação entre bola e rugosidade
- 
- K1 = (mmax/2.d0)*(39320976.4148d0 + 0.25d0*gamaN1*gamaN1)        !Kcolisao entre bolas
- K2 = (mmax)*(39320976.4148d0 + 0.25d0*gamaN2*gamaN2)             !Kcolisão entre bola e parede
- K3 = (8.d0/9.d0)*(mmax)*(39320976.4148d0 + 0.25d0*gamaN3*gamaN3) !Kcolisão entre bola e rough
- 
- gamaS = ((10.d0)**(-6.d0))                                !Coeficiente da força tangente, protege para o fat não dar pau
+ gamaN = 929.19d0                             !Coeficiente de dissipação entre as bolinhas
+ gamaS = ((10.d0)**(-5.d0))                   !Coeficiente da força tangente, protege para o fat não dar pau
  minormal = 0.5d0                             !Coeficiente de atrito entre as bolinhas
  miparede = 0.5d0                             !Coeficiente de atrito da parede
 !*********************************************************************************
@@ -165,7 +153,7 @@ call cpu_time(start)
  call salva_eps(cont,Lx,Ly,Nballs,R,S(:,1),S(:,2),ang,Nroughs,rrough,Srough,scale,xinfesq,yinfesq,xsupdir,ysupdir)
  
 !Loop para correr o tempo
-do n=1,2*10000
+do n=1,4*100000
 	Cell = -1
 	marcabola = -1
 	
@@ -252,7 +240,7 @@ do n=1,2*10000
 							D(2) = S(j,2) - S(i,2)
 					
 							if(norm2(D).lt.(R(j)+R(i))) then !Força de contato = ...
-								call contact_force(Nballs,j,i,K1,gamaS,gamaN1,minormal,D,v,omega,R,Torque,Fatrito,Fnormal,FR)
+								call contact_force(Nballs,j,i,K,gamaS,gamaN,minormal,D,m,v,omega,R,Torque,Fatrito,Fnormal,FR)
 							end if
 		
 							penbola = Cell(-1,c+verclone,penbola)
@@ -282,7 +270,7 @@ do n=1,2*10000
 							D(2) = S(j,2) - S(i,2)
 						
 							if(norm2(D).lt.(R(j)+R(i))) then !Força de contato = ...
-								call contact_force(Nballs,j,i,K1,gamaS,gamaN1,minormal,D,v,omega,R,Torque,Fatrito,Fnormal,FR)
+								call contact_force(Nballs,j,i,K,gamaS,gamaN,minormal,D,m,v,omega,R,Torque,Fatrito,Fnormal,FR)
 							end if
 		
 							penbola = Cell(nxis,c+1,penbola)
@@ -299,7 +287,7 @@ do n=1,2*10000
 				
 				do while (j.ne.-1) !While para variar as bolas da célula 				
 					if((S(j,2)-R(j)).lt.0.d0) then !Força da parede 2 (de baixo)
-						call wall_force(Lx,Ly,Nballs,j,K2,gamaS,gamaN2,miparede,S,v,omega,R,Torque,Fatrito,Fparede,FR,2)
+						call wall_force(Lx,Ly,Nballs,j,K,gamaS,gamaN,miparede,S,m,v,omega,R,Torque,Fatrito,Fparede,FR,2)
 					end if					
 					j = Cell(b,c,j)
 				end do
@@ -310,7 +298,7 @@ do n=1,2*10000
 				
 				do while (j.ne.-1) !While para variar as bolas da célula 				
 					if((S(j,2)+R(j)).gt.Ly) then !Força da parede 4 (de baixo)
-						call wall_force(Lx,Ly,Nballs,j,K2,gamaS,gamaN2,minormal,S,v,omega,R,Torque,Fatrito,Fparede,FR,4)
+						call wall_force(Lx,Ly,Nballs,j,K,gamaS,gamaN,minormal,S,m,v,omega,R,Torque,Fatrito,Fparede,FR,4)
 					end if 						
 					j = Cell(b,c,j)
 				end do
@@ -339,7 +327,7 @@ do n=1,2*10000
 								D(2) = S(j,2)
 			
 								if(norm2(D).lt.(R(j)+rrough)) then !Força de contato = ...
-									call roughness_force(Nballs,j,rrough,K3,gamaS,gamaN3,minormal,D,v,omega,R,Torque,Fatrito,Froughness,FR)
+									call roughness_force(Nballs,j,rrough,K,gamaS,gamaN,minormal,D,m,v,omega,R,Torque,Fatrito,Froughness,FR)
 								end if 
 			
 								penbola = Cellrough(nxis-1,rugosver,penbola)
@@ -370,7 +358,7 @@ do n=1,2*10000
 								D(2) = S(j,2)
 			
 								if(norm2(D).lt.(R(j)+rrough)) then !Força de contato = ...
-									call roughness_force(Nballs,j,rrough,K3,gamaS,gamaN3,minormal,D,v,omega,R,Torque,Fatrito,Froughness,FR)
+									call roughness_force(Nballs,j,rrough,K,gamaS,gamaN,minormal,D,m,v,omega,R,Torque,Fatrito,Froughness,FR)
 								end if 
 			
 								penbola = Cellrough(0,rugosver,penbola)
@@ -401,7 +389,7 @@ do n=1,2*10000
 								D(2) = S(j,2)
 			
 								if(norm2(D).lt.(R(j)+rrough)) then !Força de contato = ...
-									call roughness_force(Nballs,j,rrough,K3,gamaS,gamaN3,minormal,D,v,omega,R,Torque,Fatrito,Froughness,FR)
+									call roughness_force(Nballs,j,rrough,K,gamaS,gamaN,minormal,D,m,v,omega,R,Torque,Fatrito,Froughness,FR)
 								end if 
 			
 								penbola = Cellrough(b+rugoshor,rugosver,penbola)
@@ -435,7 +423,7 @@ do n=1,2*10000
 							D(:) = S(j,:)- S(i,:)
 			
 							if(norm2(D).lt.(R(j)+R(i))) then !Força de contato = ...
-								call contact_force(Nballs,j,i,K1,gamaS,gamaN1,minormal,D,v,omega,R,Torque,Fatrito,Fnormal,FR)
+								call contact_force(Nballs,j,i,K,gamaS,gamaN,minormal,D,m,v,omega,R,Torque,Fatrito,Fnormal,FR)
 							end if !Aqui acaba o if das forças de contato
 			
 							penbola = Cell(b+hor,c+ver,penbola)
@@ -476,11 +464,11 @@ do n=1,2*10000
 	end do
 	
 	ang = mod(teta,6.28318530718)
-	if(mod(n,10000).eq.0) then
-		cont = cont + 1
-		call salva_eps(cont,Lx,Ly,Nballs,R,S(:,1),S(:,2),ang,Nroughs,rrough,Srough,scale,xinfesq,yinfesq,xsupdir,ysupdir)
-	end if
-	
+	! if(mod(n,7500).eq.0) then
+		! cont = cont + 1
+		! call salva_eps(cont,Lx,Ly,Nballs,R,S(:,1),S(:,2),ang,Nroughs,rrough,Srough,scale,xinfesq,yinfesq,xsupdir,ysupdir)
+	! end if
+
  end do !Aqui termina o loop do tempo
  
  cont = cont + 1
@@ -496,11 +484,9 @@ do n=1,2*10000
  Hmax = Hmax + R(i)
 
 open(unit=51,file='initflowH10.dat',status='unknown')
-
  write(51,*) Nballs,Nroughs,rmax,Lx,Ly,Lcell,nxis,nyip,rrough,deltarough,nyiprough
- write(51,*) h,densidade,g,gamaS,minormal,miparede,Hmax
+ write(51,*) h,K,densidade,g,gamaN,gamaS,minormal,miparede,Hmax
  write(51,*) scale,xinfesq,yinfesq,xsupdir,ysupdir
- write(51,*) mmax,K1,K2,K3,gamaN1,gamaN2,gamaN3
 
  do j=1,Nballs
 	write(51,*) S(j,1),S(j,2),v(j,1),v(j,2),m(j)
@@ -508,7 +494,8 @@ open(unit=51,file='initflowH10.dat',status='unknown')
  end do
  
 close(unit=51)
-
+ 
+ 
  
 deallocate(Sold,Snow,S,v,m,R)
 deallocate(tetaold,tetanow,teta,omega,Inercia)
@@ -535,20 +522,22 @@ function sinal(x)
  end if
 end function
 
-subroutine contact_force(Nballs,j,i,K,gamaS,gama,minormal,D,v,omega,R,Torque,Fatrito,Fnormal,FR)
+subroutine contact_force(Nballs,j,i,K,gamaS,gamaN,minormal,D,m,v,omega,R,Torque,Fatrito,Fnormal,FR)
  implicit none
  integer, intent (in) :: Nballs,j,i
- double precision, intent (in) :: K,gamaS,gama,minormal
+ double precision, intent (in) :: K,gamaS,gamaN,minormal
  double precision, dimension (2), intent (in) :: D
  double precision, dimension (Nballs,2), intent (in) :: v
- double precision, dimension (Nballs), intent (in) :: R,omega
+ double precision, dimension (Nballs), intent (in) :: R,omega,m
  double precision, dimension (Nballs), intent (inout) :: Torque
  double precision, dimension (Nballs,2), intent (inout) :: Fatrito,FR
  double precision, dimension (Nballs,Nballs,2), intent (inout) :: Fnormal 
 
  double precision, dimension (2) :: csi,n_dir,s_dir,vrel
- double precision :: vrelnormal,vreltangente,rel,nor,sinalvtan
+ double precision :: vrelnormal,vreltangente,rel,nor,sinalvtan,meff
 
+ meff = m(i)*m(j)/(m(i)+m(j))
+ 
  n_dir= D/norm2(D)
  s_dir(1) = n_dir(2)
  s_dir(2) = -n_dir(1)
@@ -560,7 +549,7 @@ subroutine contact_force(Nballs,j,i,K,gamaS,gama,minormal,D,v,omega,R,Torque,Fat
  sinalvtan = sinal(vreltangente)
 	
  csi = (R(j)+R(i) - norm2(D))*n_dir
- Fnormal(i,j,:) = K*csi(:) - gama*vrelnormal*n_dir(:)
+ Fnormal(i,j,:) = meff*(K*csi(:) - gamaN*vrelnormal*n_dir(:))
  Fnormal(j,i,:) = -Fnormal(i,j,:)
 	
  rel = gamaS*abs(vreltangente)
@@ -584,12 +573,12 @@ subroutine contact_force(Nballs,j,i,K,gamaS,gama,minormal,D,v,omega,R,Torque,Fat
 
 end subroutine
 
-subroutine wall_force(Lx,Ly,Nballs,j,K,gamaS,gama,miparede,S,v,omega,R,Torque,Fatrito,Fparede,FR,parede)
+subroutine wall_force(Lx,Ly,Nballs,j,K,gamaS,gamaN,miparede,S,m,v,omega,R,Torque,Fatrito,Fparede,FR,parede)
  implicit none
  integer, intent (in) :: Nballs,j,parede
- double precision, intent (in) :: K,gamaS,gama,miparede,Lx,Ly
+ double precision, intent (in) :: K,gamaS,gamaN,miparede,Lx,Ly
  double precision, dimension (Nballs,2), intent (in) :: S,v
- double precision, dimension (Nballs), intent (in) :: R,omega
+ double precision, dimension (Nballs), intent (in) :: R,omega,m
  double precision, dimension (Nballs), intent (inout) :: Torque
  double precision, dimension (Nballs,2), intent (inout) :: Fatrito,Fparede,FR
 
@@ -601,7 +590,7 @@ subroutine wall_force(Lx,Ly,Nballs,j,K,gamaS,gama,miparede,S,v,omega,R,Torque,Fa
  select case(parede)
  case(1) !Parede da esquerda 
 	csi(1) = 0.d0 -(S(j,1)-R(j))
-	Fparede(j,1) = K*csi(1) - gama*v(j,1)
+	Fparede(j,1) = m(j)*(K*csi(1) - gamaN*v(j,1))
 	
 	vrelnormal = v(j,1)
 	vreltangente = v(j,2) - omega(j)*R(j)	
@@ -621,7 +610,7 @@ subroutine wall_force(Lx,Ly,Nballs,j,K,gamaS,gama,miparede,S,v,omega,R,Torque,Fa
 	
  case(2) !Parede de baixo
  	csi(2) = 0.d0 -(S(j,2)-R(j))
-	Fparede(j,2) = K*csi(2) - gama*v(j,2)
+	Fparede(j,2) = m(j)*(K*csi(2) - gamaN*v(j,2))
 	
 	vrelnormal = v(j,2)
 	vreltangente = v(j,1) + omega(j)*R(j)	
@@ -641,7 +630,7 @@ subroutine wall_force(Lx,Ly,Nballs,j,K,gamaS,gama,miparede,S,v,omega,R,Torque,Fa
 	
  case(3) !Parede da direita
  	csi(1) = Lx-(S(j,1)+R(j))
-	Fparede(j,1) = K*csi(1) - gama*v(j,1)
+	Fparede(j,1) = m(j)*(K*csi(1) - gamaN*v(j,1))
 	
 	vrelnormal = v(j,1)
 	vreltangente = v(j,2) + omega(j)*R(j)	
@@ -661,7 +650,7 @@ subroutine wall_force(Lx,Ly,Nballs,j,K,gamaS,gama,miparede,S,v,omega,R,Torque,Fa
 	
  case(4) !Parede de cima
 	csi(2) = Ly-(S(j,2)+R(j))
-	Fparede(j,2) = K*csi(2) - gama*v(j,2)
+	Fparede(j,2) = m(j)*(K*csi(2) - gamaN*v(j,2))
 	
 	vrelnormal = v(j,2)
 	vreltangente = v(j,1) - omega(j)*R(j)
@@ -683,20 +672,22 @@ subroutine wall_force(Lx,Ly,Nballs,j,K,gamaS,gama,miparede,S,v,omega,R,Torque,Fa
 	
 end subroutine
 
-subroutine roughness_force(Nballs,j,rrough,K,gamaS,gama,miparede,D,v,omega,R,Torque,Fatrito,Froughness,FR)
+subroutine roughness_force(Nballs,j,rrough,K,gamaS,gamaN,miparede,D,m,v,omega,R,Torque,Fatrito,Froughness,FR)
  implicit none
  integer, intent (in) :: Nballs,j
- double precision, intent (in) :: K,gamaS,gama,miparede,rrough
+ double precision, intent (in) :: K,gamaS,gamaN,miparede,rrough
  double precision, dimension (2), intent (in) :: D
  double precision, dimension (Nballs,2), intent (in) :: v
- double precision, dimension (Nballs), intent (in) :: R,omega
+ double precision, dimension (Nballs), intent (in) :: R,omega,m
  double precision, dimension (Nballs), intent (inout) :: Torque
  double precision, dimension (Nballs,2), intent (inout) :: Fatrito,FR
  double precision, dimension (Nballs,2), intent (inout) :: Froughness
 
  double precision, dimension (2) :: csi,n_dir,s_dir,vrel
- double precision :: vrelnormal,vreltangente,rel,nor,sinalvtan
-
+ double precision :: vrelnormal,vreltangente,rel,nor,sinalvtan,meff
+ 
+ meff = m(j)*(R(j)**(3.d0))/( rrough**(3.d0) + R(j)**(3.d0) )
+ 
  n_dir= D/norm2(D)
  s_dir(1) = n_dir(2)
  s_dir(2) = -n_dir(1)
@@ -708,7 +699,7 @@ subroutine roughness_force(Nballs,j,rrough,K,gamaS,gama,miparede,D,v,omega,R,Tor
  sinalvtan = sinal(vreltangente)
  
  csi = (R(j)+ rrough - norm2(D))*n_dir
- Froughness(j,:) = K*csi(:) - gama*vrelnormal*n_dir(:)
+ Froughness(j,:) = meff*(K*csi(:) - gamaN*vrelnormal*n_dir(:))
  
  rel = gamaS*abs(vreltangente)
  nor = miparede*norm2(Froughness(j,:))
@@ -746,9 +737,9 @@ subroutine pos_init(S,v,teta,omega,ang,R,m,Inercia,densidade,rmax,Lcell,nxis,nyi
 		bola = bola + 1
 		
 		if (bola.le.Nballs) then		
-			S(bola,1) = Lcell*( ((0.5d0 + 1.0d0*xis)) )!+ 0.03d0*(rand(0)-0.5d0) )
-			S(bola,2) = Lcell*( ((0.5d0 + 1.0d0*yip)) )!+ 0.03d0*(rand(0)-0.5d0) )
-			R(bola)   = rmax!*(0.9d0 + (rand(0)-0.5d0)*(5.d0/100.d0))			
+			S(bola,1) = Lcell*( ((0.5d0 + 1.0d0*xis)) + 0.03d0*(rand(0)-0.5d0) )
+			S(bola,2) = Lcell*( ((0.5d0 + 1.0d0*yip)) + 0.03d0*(rand(0)-0.5d0) )
+			R(bola)   = rmax*(0.9d0 + (rand(0)-0.5d0)*(5.d0/100.d0))			
 		end if
 		
 	end do

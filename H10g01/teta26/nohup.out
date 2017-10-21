@@ -1,8 +1,0 @@
-
-Program received signal SIGSEGV: Segmentation fault - invalid memory reference.
-
-Backtrace for this error:
-#0  0x7F33349D3E08
-#1  0x7F33349D2F90
-#2  0x7F333431A4AF
-#3  0x406EAB in MAIN__ at flow_flowRSST26.f90:?

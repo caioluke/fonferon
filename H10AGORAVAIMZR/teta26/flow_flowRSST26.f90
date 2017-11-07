@@ -106,7 +106,7 @@ allocate(howmanyballs(0:nxis-1,0:nyip))
  call salva_eps(cont,Lx,Ly,Nballs,R,S(:,1),S(:,2),ang,Nroughs,rrough,Srough,scale,xinfesq,yinfesq,xsupdir,ysupdir)
  
 !Loop para correr o tempo
-do n=ninit,1000*10000
+do n=ninit,200*10000
 	Cell = -1
 	marcabola = -1
 	howmanyballs = 0

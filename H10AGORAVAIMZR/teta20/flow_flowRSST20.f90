@@ -167,7 +167,7 @@ do n=ninit,200*10000
 	end if
 	
 	!Para o ângulo de escoamento, inicialmente dá-se um ângulo maior para retirarmos o efeito da "história"
-	if(n.le.100) then
+	if(n.le.10000) then
 		flow_angle = (28.d0)*0.01745329252d0
 	else 
 		flow_angle = flow_angle1

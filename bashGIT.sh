@@ -1,16 +1,28 @@
 cd H10
-git add teta10/
+git add 12teta/
 ls
-git add teta15/
+git add 14teta/
 ls
-git add teta20/
+git add 16teta/
+ls
+git add 20teta/
+ls
+git add 22teta/
+ls
+git add 24teta/
 ls
 cd ..
-cd H10MAG
-git add teta10MAG/
+cd H20
+git add 12teta/
 ls
-git add teta15MAG/
+git add 14teta/
 ls
-git add teta20MAG/
+git add 16teta/
 ls
-git commit -m "hadouken"
+git add 20teta/
+ls
+git add 22teta/
+ls
+git add 24teta/
+ls
+git commit -m "souvent je mens"
